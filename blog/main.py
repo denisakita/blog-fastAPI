@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from blog import models
 from blog.database import SessionLocal, engine
 from blog.models import Blog as BlogModel
-from blog.schemas import Blog as BlogSchema
+from blog.schemas import Blog as BlogSchema, ShowBlog
+from blog.schemas import User as UserSchema
 
 app = FastAPI()
 
@@ -60,10 +61,19 @@ async def get_all_blogs(db: Session = Depends(get_db)):
     return blogs
 
 
-@app.get("/blog/{id}", status_code=status.HTTP_200_OK)
+@app.get("/blog/{id}", status_code=status.HTTP_200_OK, response_model=ShowBlog)
 async def get_blog_by_id(id: int, db: Session = Depends(get_db)):
     blog = db.query(models.Blog).filter(models.Blog.id == id).first()
     if not blog:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Blog does not exist")
     return blog
+
+
+@app.post('/user')
+def create_user(request: UserSchema, db: Session = Depends(get_db)):
+    new_user = models.User(name=request.name, email=request.email, password=request.password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
