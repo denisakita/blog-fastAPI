@@ -5,7 +5,8 @@ from blog import models
 from blog.database import SessionLocal, engine
 from blog.models import Blog as BlogModel
 from blog.schemas import Blog as BlogSchema, ShowBlog
-from blog.schemas import User as UserSchema
+from blog.schemas import User as UserSchema, ShowUser
+from .hashing import Hash
 
 app = FastAPI()
 
@@ -70,10 +71,19 @@ async def get_blog_by_id(id: int, db: Session = Depends(get_db)):
     return blog
 
 
-@app.post('/user')
+@app.post('/user', response_model=ShowUser)
 def create_user(request: UserSchema, db: Session = Depends(get_db)):
-    new_user = models.User(name=request.name, email=request.email, password=request.password)
+    new_user = models.User(name=request.name, email=request.email, password=Hash.bcrypt_hash(request.password))
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
+
+
+@app.get('/user/{id}', response_model=ShowUser)
+def get_user_by_id(id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="User does not exist")
+    return user
